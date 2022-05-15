@@ -5,21 +5,21 @@ public class Product {
     private String name;
     private String drawing;
     private int routeId;
-    private int[] usedProductIds;
-    private int[] usedComponentIds;
+    private UsedProduct[] usedProducts;
+    private UsedComponent[] usedComponents;
     private String description;
 
     public Product() {
-        this(0, "-", "-", 0, new int[]{}, new int[]{}, "-");
+        this(0, "-", "-", 0, new UsedProduct[]{}, new UsedComponent[]{}, "-");
     }
 
-    public Product(int id, String name, String drawing, int routeId, int[] usedProductIds, int[] usedComponentIds, String description) {
+    public Product(int id, String name, String drawing, int routeId, UsedProduct[] usedProducts, UsedComponent[] usedComponents, String description) {
         this.id = id;
         this.name = name;
         this.drawing = drawing;
         this.routeId = routeId;
-        this.usedProductIds = usedProductIds;
-        this.usedComponentIds = usedComponentIds;
+        this.usedProducts = usedProducts;
+        this.usedComponents = usedComponents;
         this.description = description;
     }
 
@@ -39,12 +39,12 @@ public class Product {
         return routeId;
     }
 
-    public int[] getUsedProductIds() {
-        return usedProductIds;
+    public UsedProduct[] getUsedProducts() {
+        return usedProducts;
     }
 
-    public int[] getUsedComponentIds() {
-        return usedComponentIds;
+    public UsedComponent[] getUsedComponents() {
+        return usedComponents;
     }
 
     public String getDescription() {
@@ -56,13 +56,13 @@ public class Product {
                 this.id, this.name, this.drawing, this.routeId, this.description);
 
         System.out.println("===Used Products===");
-        if(usedProductIds.length != 0) {
-            for(int usedProductId : this.usedProductIds) System.out.printf("|productID: %-5d|\n", usedProductId);
+        if(usedProducts.length != 0) {
+            for(UsedProduct usedProduct : this.usedProducts) ;
         } else System.out.println("Empty");
 
         System.out.println("===Used Components===");
-        if(usedComponentIds.length != 0) {
-            for(int usedComponentId : this.usedComponentIds) System.out.printf("|componentID: %-5d|\n", usedComponentId);
+        if(usedComponents.length != 0) {
+            for(UsedComponent usedComponent : this.usedComponents) ;
         } else System.out.println("Empty");
     }
 
@@ -76,15 +76,15 @@ public class Product {
                 .append("\tdescription: ").append(this.description).append("\n")
                 .append("===Used Products==\n");
 
-        if(usedProductIds.length != 0) {
-            for(int usedProductId : this.usedProductIds)
-                strBuild.append("productID: ").append(Integer.toString(usedProductId)).append("\n");
+        if(usedProducts.length != 0) {
+            for(UsedProduct usedProduct : this.usedProducts)
+                System.out.println(usedProduct);
         } else strBuild.append("Empty").append("\n");
 
         strBuild.append("===Used Components==\n");
-        if(usedComponentIds.length != 0) {
-            for(int usedComponentId : this.usedComponentIds)
-                strBuild.append("componentID: ").append(Integer.toString(usedComponentId)).append("\n");
+        if(usedComponents.length != 0) {
+            for(UsedComponent usedComponent : this.usedComponents)
+                System.out.println(usedComponent);
         } else strBuild.append("Empty").append("\n");
 
         return strBuild.toString();

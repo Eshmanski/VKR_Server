@@ -1,9 +1,6 @@
 package com.data;
 
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
+import java.sql.*;
 import java.util.ArrayList;
 
 import com.data.classes.*;
@@ -31,8 +28,8 @@ public class EnterpriseModelsManager {
             "INSERT INTO products SET name=?; INSERT INTO models SET product=last_insert_id(), type=\"product\", title=?;";
     private final String ADD_WORKSHOP_NODE = "INSERT INTO workshops_route SET workshop_id=?, route_id=?, position_x=?, position_y=?";
     private final String ADD_WORKSHOP_LINE = "INSERT INTO lines_route SET route_id=?, start=?, end=?";
-    private final String ADD_USED_PRODUCT = "INSERT INTO product_to_product SET product_id=?, to_product_id=?";
-    private final String ADD_USED_COMPONENT = "INSERT INTO component_to_product SET component_id=?, to_product_id=?";
+    private final String ADD_USED_PRODUCT = "INSERT INTO product_to_product SET product_id=?, to_product_id=?, count=?";
+    private final String ADD_USED_COMPONENT = "INSERT INTO component_to_product SET component_id=?, to_product_id=?, count=?";
     private final String UPDATE_WORKSHOP = "UPDATE workshops SET name=?, description=? WHERE id=?";
     private final String UPDATE_COMPONENT = "UPDATE components SET name=?, drawing=?, route=?, description=? WHERE id=?";
     private final String UPDATE_PRODUCT = "UPDATE products SET name=?, drawing=?, route=?, description=? WHERE id=?";
@@ -160,16 +157,22 @@ public class EnterpriseModelsManager {
 
         try(Statement statement = this.worker.getConnection().createStatement()) {
             ResultSet resUsedProducts = statement.executeQuery(GET_USED_PRODUCTS + Integer.toString(id));
-            ArrayList<Integer> usedProductsList = new ArrayList<Integer>();
+            ArrayList<UsedProduct> usedProductsList = new ArrayList<UsedProduct>();
             while(resUsedProducts.next()) {
-                usedProductsList.add(resUsedProducts.getInt(1));
+                int productId = resUsedProducts.getInt(1);
+                int count = resUsedProducts.getInt(3);
+                UsedProduct usedProduct = new UsedProduct(productId, count);
+                usedProductsList.add(usedProduct);
             }
             resUsedProducts.close();
 
             ResultSet resUsedComponents = statement.executeQuery(GET_USED_COMPONENTS + Integer.toString(id));
-            ArrayList<Integer> usedComponentsList = new ArrayList<Integer>();
+            ArrayList<UsedComponent> usedComponentsList = new ArrayList<UsedComponent>();
             while(resUsedComponents.next()) {
-                usedComponentsList.add(resUsedComponents.getInt(1));
+                int productId = resUsedComponents.getInt(1);
+                int count = resUsedComponents.getInt(3);
+                UsedComponent usedComponent = new UsedComponent(productId, count);
+                usedComponentsList.add(usedComponent);
             }
             resUsedComponents.close();
 
@@ -177,8 +180,8 @@ public class EnterpriseModelsManager {
             resProduct.next();
             product = fillProduct(
                     resProduct,
-                    usedProductsList.stream().mapToInt(x -> x).toArray(),
-                    usedComponentsList.stream().mapToInt(x -> x).toArray()
+                    (UsedProduct[]) usedProductsList.toArray(new UsedProduct[0]),
+                    (UsedComponent[]) usedComponentsList.toArray(new UsedComponent[0])
                     );
             resProduct.close();
         } catch(SQLException e) {
@@ -267,7 +270,12 @@ public class EnterpriseModelsManager {
         try(PreparedStatement preparedStatement = this.worker.getConnection().prepareStatement(UPDATE_COMPONENT)) {
             preparedStatement.setString(1, component.getName());
             preparedStatement.setString(2, component.getDrawing());
-            preparedStatement.setInt(3, component.getRouteId());
+
+            if (component.getRouteId() != 0)
+                preparedStatement.setInt(3, component.getRouteId());
+            else
+                preparedStatement.setNull(3, Types.NULL);
+
             preparedStatement.setString(4, component.getDescription());
             preparedStatement.setInt(5, component.getId());
             preparedStatement.execute();
@@ -293,23 +301,30 @@ public class EnterpriseModelsManager {
 
             psProduct.setString(1, product.getName());
             psProduct.setString(2, product.getDrawing());
-            psProduct.setInt(3, product.getRouteId());
+
+            if (product.getRouteId() != 0)
+                psProduct.setInt(3, product.getRouteId());
+            else
+                psProduct.setNull(3, Types.NULL);
+
             psProduct.setString(4, product.getDescription());
             psProduct.setInt(5, product.getId());
             psProduct.execute();
 
-            int[] usedProductIds = product.getUsedProductIds();
-            for(int usedProductId : usedProductIds) {
-                psUsedProduct.setInt(1, usedProductId);
+            UsedProduct[] usedProducts = product.getUsedProducts();
+            for(UsedProduct usedProduct : usedProducts) {
+                psUsedProduct.setInt(1, usedProduct.getId());
                 psUsedProduct.setInt(2, product.getId());
+                psUsedProduct.setInt(3, usedProduct.getCount());
                 psUsedProduct.addBatch();
             }
             psUsedProduct.executeBatch();
 
-            int[] usedComponentIds = product.getUsedComponentIds();
-            for(int usedComponentId : usedComponentIds) {
-                psUsedComponent.setInt(1, usedComponentId);
+            UsedComponent[] usedComponents = product.getUsedComponents();
+            for(UsedComponent usedComponent : usedComponents) {
+                psUsedComponent.setInt(1, usedComponent.getId());
                 psUsedComponent.setInt(2, product.getId());
+                psUsedComponent.setInt(3, usedComponent.getCount());
                 psUsedComponent.addBatch();
             }
             psUsedComponent.executeBatch();
@@ -436,6 +451,8 @@ public class EnterpriseModelsManager {
             String name = res.getString(2);
             String description = res.getString(3);
 
+            if(description == null) description = "";
+
             workshop = new Workshop(id, name, description);
         } catch (SQLException e) {
             System.out.println("Can`t get cell");
@@ -503,6 +520,9 @@ public class EnterpriseModelsManager {
             int routeId = res.getInt(4);
             String description = res.getString(5);
 
+            if(description == null) description = "";
+            if(drawing == null) drawing = "";
+
             component = new Component(id, name, drawing, routeId, description);
         } catch (SQLException e) {
             System.out.println("Can`t get cell");
@@ -512,7 +532,7 @@ public class EnterpriseModelsManager {
         return component;
     }
 
-    private Product fillProduct(ResultSet res, int[] usedProducts, int[] usedComponents) {
+    private Product fillProduct(ResultSet res, UsedProduct[] usedProducts, UsedComponent[] usedComponents) {
         Product product = null;
 
         try {
@@ -521,6 +541,9 @@ public class EnterpriseModelsManager {
             String drawing = res.getString(3);
             int routeId = res.getInt(4);
             String description = res.getString(5);
+
+            if(description == null) description = "";
+            if(drawing == null) drawing = "";
 
             product = new Product(id, name, drawing, routeId, usedProducts, usedComponents, description);
         } catch (SQLException e) {
